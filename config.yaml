@@ -1,0 +1,14 @@
+connection:
+  host: 192.168.1.64
+  port: 3333
+imu:
+  idealSamplePeriod: 0.0025
+  calFrameCount: 100
+  numImus: 3
+  gyro:
+    dpsRange: 500
+  accel:
+    gRange: 2
+visualizer:
+  renderPeriod: 0.2
+
