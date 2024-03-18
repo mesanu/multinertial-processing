@@ -1,5 +1,5 @@
 connection:
-  host: 192.168.1.64
+  host: 192.168.1.67
   port: 3333
 imu:
   idealSamplePeriod: 0.0025

@@ -1,77 +1,84 @@
-import numpy as np
 from math import sin, cos, radians
+import numpy as np
 
-def rotateVectorsAboutAxis(vectors, axis, degrees):
-        theta = radians(degrees)
-        sinTheta = sin(theta)
-        cosTheta = cos(theta)
-        oneMinusCos = 1 - cosTheta
-        mulXY = axis[0] * axis[1]
-        mulYZ = axis[1] * axis[2]
-        mulXZ = axis[0] * axis[2]
+def rotate_vectors_about_axis(vectors, axis, degrees):
+    """ Rotate a set of vectors about a specified axis """
+    theta = radians(degrees)
+    sin_theta = sin(theta)
+    cos_theta = cos(theta)
+    one_minus_cos = 1 - cos_theta
+    mul_xy = axis[0] * axis[1]
+    mul_yz = axis[1] * axis[2]
+    mul_xz = axis[0] * axis[2]
 
-        rotMat = np.array([[cosTheta + axis[0]**2 * oneMinusCos,
-                            mulXY * oneMinusCos - axis[2] * sinTheta,
-                            mulXZ * oneMinusCos + axis[1] * sinTheta],
-                           [mulXY * oneMinusCos + axis[2] * sinTheta,
-                            cosTheta + axis[1]**2 * oneMinusCos,
-                            mulYZ * oneMinusCos - axis[0] * sinTheta],
-                           [mulXZ * oneMinusCos - axis[1] * sinTheta,
-                            mulYZ * oneMinusCos + axis[0] * sinTheta,
-                            cosTheta + axis[2]**2 * oneMinusCos]])
-        return np.matmul(rotMat, vectors.T).T
+    rot_mat = np.array([[cos_theta + axis[0]**2 * one_minus_cos,
+                        mul_xy * one_minus_cos - axis[2] * sin_theta,
+                        mul_xz * one_minus_cos + axis[1] * sin_theta],
+                        [mul_xy * one_minus_cos + axis[2] * sin_theta,
+                        cos_theta + axis[1]**2 * one_minus_cos,
+                        mul_yz * one_minus_cos - axis[0] * sin_theta],
+                        [mul_xz * one_minus_cos - axis[1] * sin_theta,
+                        mul_yz * one_minus_cos + axis[0] * sin_theta,
+                        cos_theta + axis[2]**2 * one_minus_cos]])
+    return np.matmul(rot_mat, vectors.T).T
 
-def getDataBlock(conn, gyroDPS, accelGRange):
+def get_data_block(conn, gyro_dps, accel_g_range):
+    """ Extract a block of data from ESP32 on breadboard and parse the binary string"""
     i = 0
     data = conn.recv(4096)
     index = data[i]
     i += 1
-    headSecondsTs = float(int.from_bytes(data[i:(i+8)], byteorder='little'))/10**6
+    head_seconds_ts = float(int.from_bytes(data[i:(i+8)], byteorder='little'))/10**6
     i += 8
-    tailSecondsTs = float(int.from_bytes(data[i:(i+8)], byteorder='little'))/10**6
+    tail_seconds_ts = float(int.from_bytes(data[i:(i+8)], byteorder='little'))/10**6
     i += 8
-    numFrames = int.from_bytes(data[i:(i+2)], byteorder='little')
+    num_frames = int.from_bytes(data[i:(i+2)], byteorder='little')
     i += 2
 
-    gyroX = data[i:i+numFrames*2]
-    gyroX = [float(int.from_bytes(gyroX[n:n+2], byteorder='little', signed=True))/32768*gyroDPS for n in range(0, numFrames*2, 2)]
-    i += numFrames*2
+    gyro_x = data[i:i+num_frames*2]
+    gyro_x = [float(
+        int.from_bytes(gyro_x[n:n+2], byteorder='little', signed=True))/32768*gyro_dps for n in range(0, num_frames*2, 2)]
+    i += num_frames*2
 
-    gyroY = data[i:i+numFrames*2]
-    gyroY = [float(int.from_bytes(gyroY[n:n+2], byteorder='little', signed=True))/32768*gyroDPS for n in range(0, numFrames*2, 2)]
-    i += numFrames*2
+    gyro_y = data[i:i+num_frames*2]
+    gyro_y = [float(int.from_bytes(gyro_y[n:n+2], byteorder='little', signed=True))/32768*gyro_dps for n in range(0, num_frames*2, 2)]
+    i += num_frames*2
 
-    gyroZ = data[i:i+numFrames*2]
-    gyroZ = [float(int.from_bytes(gyroZ[n:n+2], byteorder='little', signed=True))/32768*gyroDPS for n in range(0, numFrames*2, 2)]
-    i += numFrames*2
+    gyro_z = data[i:i+num_frames*2]
+    gyro_z = [float(int.from_bytes(gyro_z[n:n+2], byteorder='little', signed=True))/32768*gyro_dps for n in range(0, num_frames*2, 2)]
+    i += num_frames*2
 
-    accelX = data[i:i+numFrames*2]
-    accelX = [float(int.from_bytes(accelX[n:n+2], byteorder='little', signed=True))/32768*accelGRange for n in range(0, numFrames*2, 2)]
-    accelX = np.array(accelX)
-    i += numFrames*2
+    accel_x = data[i:i+num_frames*2]
+    accel_x = [float(int.from_bytes(accel_x[n:n+2], byteorder='little', signed=True))/32768*accel_g_range for n in range(0, num_frames*2, 2)]
+    accel_x = np.array(accel_x)
+    i += num_frames*2
 
-    accelY = data[i:i+numFrames*2]
-    accelY = [float(int.from_bytes(accelY[n:n+2], byteorder='little', signed=True))/32768*accelGRange for n in range(0, numFrames*2, 2)]
-    accelY = np.array(accelY)
-    i += numFrames*2
+    accel_y = data[i:i+num_frames*2]
+    accel_y = [float(int.from_bytes(accel_y[n:n+2], byteorder='little', signed=True))/32768*accel_g_range for n in range(0, num_frames*2, 2)]
+    accel_y = np.array(accel_y)
+    i += num_frames*2
 
-    accelZ = data[i:i+numFrames*2]
-    accelZ = [float(int.from_bytes(accelZ[n:n+2], byteorder='little', signed=True))/32768*accelGRange for n in range(0, numFrames*2, 2)]
-    accelZ = np.array(accelZ)
-    i += numFrames*2
+    accel_z = data[i:i+num_frames*2]
+    accel_z = [float(int.from_bytes(accel_z[n:n+2], byteorder='little', signed=True))/32768*accel_g_range for n in range(0, num_frames*2, 2)]
+    accel_z = np.array(accel_z)
+    i += num_frames*2
 
-    timestamps = np.linspace(tailSecondsTs, headSecondsTs, numFrames+1)[1:]
+    timestamps = np.linspace(tail_seconds_ts, head_seconds_ts, num_frames+1)[1:]
 
-    return index, np.column_stack([timestamps, gyroX, gyroY, gyroZ, accelX, accelY, accelZ])
+    return index, np.column_stack([timestamps, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z])
 
-def sendStartCommand(conn):
+def send_start_command(conn):
+    """ Send command to start sampling to ESP32 """
     conn.send(b"start\0")
 
-def sendStopCommand(conn):
+def send_stop_command(conn):
+    """ Send command to stop sampling to ESP32 """
     conn.send(b"stop\0")
 
-def sendCalCommand(conn):
+def send_cal_command(conn):
+    """ Send command to enter calibration moe to ESP32 """
     conn.send(b"cal\0")
 
-def sendAck(conn):
+def send_ack(conn):
+    """ Send acknowledgement to ESP32 """
     conn.send(b"ack\0")

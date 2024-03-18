@@ -1,4 +1,5 @@
 import socket
+import sys
 import numpy as np
 import yaml
 from common import *
@@ -6,62 +7,68 @@ import time
 
 NUM_ORIENTATIONS = 6
 
-calFile = open("./calibrations.yaml", "r")
-calibrations = yaml.safe_load(calFile)
-calFile.close()
+def main():
+    """ Main function for claibration procedure """
+    cal_file = open("./calibrations.yaml", "r", encoding="utf-8")
+    cal_file.close()
 
-configs = yaml.safe_load(open("./config.yaml", "r"))
+    configs = yaml.safe_load(open("./config.yaml", "r", encoding="utf-8"))
 
-host = configs["connection"]["host"]
-port = int(configs["connection"]["port"])
+    host = configs["connection"]["host"]
+    port = int(configs["connection"]["port"])
 
-numFrames = int(configs["imu"]["calFrameCount"])
-gyroDPSRange = float(configs["imu"]["gyro"]["dpsRange"])
-accelGRange = float(configs["imu"]["accel"]["gRange"])
-numImus = int(configs["imu"]["numImus"])
+    num_frames = int(configs["imu"]["calFrameCount"])
+    gyro_dps_range = float(configs["imu"]["gyro"]["dpsRange"])
+    accel_g_range = float(configs["imu"]["accel"]["gRange"])
+    num_imus = int(configs["imu"]["num_imus"])
 
-print("connecting")
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((host, port))
+    print("connecting")
+    esp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    esp_sock.connect((host, port))
 
-sendCalCommand(s)
+    send_cal_command(esp_sock)
 
-time.sleep(1)
+    time.sleep(1)
 
-calDicts = []
+    cal_dicts = []
 
-for i in range(NUM_ORIENTATIONS):
-    calDictsOrientation = []
-    frameMeans = [[] for _ in range(numImus)]
-    frameCounts = np.array([numFrames]*numImus)
-    sendStartCommand(s)
-    while(np.any(frameCounts > 0)):
-        index, imuFrame = getDataBlock(s, gyroDPSRange, accelGRange)
-        #print(imuFrame)
-        if(frameCounts[index] > 0):
-            frameMeans[index].append(np.mean(imuFrame[:,1:], axis=0))
-            frameCounts[index] -= 1
-        if(np.any(frameCounts > 0)):
-            sendAck(s)
-        else:
-            sendStopCommand(s)
+    orientation_stages = NUM_ORIENTATIONS
 
-    frameMeans = np.mean(np.array(frameMeans), axis=1)
-    for mean in frameMeans:
-        calDict = dict({"gyro":{"x":0, "y":0, "z":0}, "accel":{"x":0, "y":0, "z":0}})
-        calDict["gyro"]["x"] = float(mean[0])
-        calDict["gyro"]["y"] = float(mean[1])
-        calDict["gyro"]["z"] = float(mean[2])
-        calDict["accel"]["x"] = float(mean[3])
-        calDict["accel"]["y"] = float(mean[4])
-        calDict["accel"]["z"] = float(mean[5])
-        calDictsOrientation.append(calDict)
+    while orientation_stages:
+        cal_dicts_orientation = []
+        frame_means = [[] for _ in range(num_imus)]
+        frame_counts = np.array([num_frames]*num_imus)
+        send_start_command(esp_sock)
+        while np.any(frame_counts > 0):
+            index, imu_frame = get_data_block(esp_sock, gyro_dps_range, accel_g_range)
+            if frame_counts[index] > 0:
+                frame_means[index].append(np.mean(imu_frame[:,1:], axis=0))
+                frame_counts[index] -= 1
+            if np.any(frame_counts > 0):
+                send_ack(esp_sock)
+            else:
+                send_stop_command(esp_sock)
 
-    calDicts.append(calDictsOrientation)
-    print("Finished orientation")
+        frame_means = np.mean(np.array(frame_means), axis=1)
+        for mean in frame_means:
+            cal_dict = dict({"gyro":{"x":0, "y":0, "z":0}, "accel":{"x":0, "y":0, "z":0}})
+            cal_dict["gyro"]["x"] = float(mean[0])
+            cal_dict["gyro"]["y"] = float(mean[1])
+            cal_dict["gyro"]["z"] = float(mean[2])
+            cal_dict["accel"]["x"] = float(mean[3])
+            cal_dict["accel"]["y"] = float(mean[4])
+            cal_dict["accel"]["z"] = float(mean[5])
+            cal_dicts_orientation.append(cal_dict)
 
-sendCalCommand(s)
+        cal_dicts.append(cal_dicts_orientation)
+        print("Finished orientation")
+        orientation_stages -= 1
 
-configFile = open("./calibrations.yaml", "w")
-configFile.write(yaml.dump(calDicts))
-configFile.close()
+    send_cal_command(esp_sock)
+
+    config_file = open("./calibrations.yaml", "w", encoding="utf-8")
+    config_file.write(yaml.dump(cal_dicts))
+    config_file.close()
+
+if __name__ == '__main__':
+    sys.exit(main())
